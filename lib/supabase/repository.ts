@@ -1,6 +1,4 @@
-import { toLocalDateInput } from "@/lib/date";
 import {
-  CATEGORIES,
   type AppState,
   type MoneyBook,
   type Session,
@@ -112,25 +110,6 @@ async function fetchTransactions(
   );
 }
 
-async function createSampleData(client: SupabaseDataClient, userId: string) {
-  const money_book = await supabaseRepository.createMoneyBook(client, {
-    name: "測試帳本",
-    how_much: 30_000,
-    currency_code: "TWD",
-    user_id: userId,
-  });
-  const transaction = await supabaseRepository.createTransaction(client, {
-    money_book_id: money_book.id,
-    name: "測試早餐",
-    how_much: 85,
-    transaction_type: "expense",
-    category: CATEGORIES[0],
-    transaction_date: toLocalDateInput(),
-  });
-
-  return { money_book, transaction };
-}
-
 export const supabaseRepository = {
   emptyState,
 
@@ -141,19 +120,7 @@ export const supabaseRepository = {
     const user = await getCurrentUser(client);
     if (!user) return emptyState(session);
 
-    let money_book = await fetchMoneyBooks(client, user.id);
-    if (money_book.length === 0) {
-      const sample = await createSampleData(client, user.id);
-      money_book = [sample.money_book];
-      return {
-        version: 1,
-        money_book,
-        transactions: [sample.transaction],
-        current_money_book_id: sample.money_book.id,
-        session,
-      };
-    }
-
+    const money_book = await fetchMoneyBooks(client, user.id);
     const transactions = await fetchTransactions(
       client,
       money_book.map((item) => item.id),
@@ -308,14 +275,6 @@ export const supabaseRepository = {
       assertNoError(await moneyBookTable.delete().in("id", moneyBookIds));
     }
 
-    const sample = await createSampleData(client, user.id);
-
-    return {
-      version: 1,
-      money_book: [sample.money_book],
-      transactions: [sample.transaction],
-      current_money_book_id: sample.money_book.id,
-      session,
-    };
+    return emptyState(session);
   },
 };

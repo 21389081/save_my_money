@@ -128,7 +128,7 @@ describe("supabaseRepository", () => {
     });
   });
 
-  it("creates sample data when the user has no money books", async () => {
+  it("returns an empty state when the user has no money books", async () => {
     const { client, moneyBookTable, transactionsTable } = createClient({
       moneyBookRows: [],
       transactionRows: [],
@@ -136,22 +136,15 @@ describe("supabaseRepository", () => {
 
     const state = await supabaseRepository.load(client, session);
 
-    expect(moneyBookTable.insert).toHaveBeenCalledWith({
-      name: "測試帳本",
-      how_much: 30_000,
-      user_id: user.id,
-      currency_code: "TWD",
+    expect(moneyBookTable.insert).not.toHaveBeenCalled();
+    expect(transactionsTable.insert).not.toHaveBeenCalled();
+    expect(state).toEqual({
+      version: 1,
+      money_book: [],
+      transactions: [],
+      current_money_book_id: null,
+      session,
     });
-    expect(transactionsTable.insert).toHaveBeenCalledWith({
-      money_book_id: 1,
-      name: "測試早餐",
-      how_much: 85,
-      transaction_type: "expense",
-      category: CATEGORIES[0],
-      transaction_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-    });
-    expect(state.money_book).toEqual([moneyBookRow]);
-    expect(state.transactions).toEqual([transactionRow]);
   });
 
   it("creates a money book through Supabase", async () => {
@@ -220,7 +213,7 @@ describe("supabaseRepository", () => {
     expect(moneyBookTable.delete).toHaveBeenCalled();
   });
 
-  it("resets the current user's data and recreates sample data", async () => {
+  it("resets the current user's data to an empty state", async () => {
     const { client, moneyBookTable, transactionsTable } = createClient({
       moneyBookRows: [moneyBookRow],
       transactionRows: [transactionRow],
@@ -230,7 +223,14 @@ describe("supabaseRepository", () => {
 
     expect(transactionsTable.delete).toHaveBeenCalled();
     expect(moneyBookTable.delete).toHaveBeenCalled();
-    expect(moneyBookTable.insert).toHaveBeenCalled();
-    expect(state.current_money_book_id).toBe(1);
+    expect(moneyBookTable.insert).not.toHaveBeenCalled();
+    expect(transactionsTable.insert).not.toHaveBeenCalled();
+    expect(state).toEqual({
+      version: 1,
+      money_book: [],
+      transactions: [],
+      current_money_book_id: null,
+      session,
+    });
   });
 });
