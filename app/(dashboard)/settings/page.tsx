@@ -62,9 +62,7 @@ export default function SettingsPage() {
                 </button>
             </section>
 
-            <p className='mt-8 text-center text-xs leading-5 text-muted'>
-                好好記帳 v0.1 · Supabase 與 Google OAuth 將於後端階段加入
-            </p>
+            <p className='mt-8 text-center text-xs leading-5 text-muted'>好好記帳 v1.0</p>
         </>
     );
 }
