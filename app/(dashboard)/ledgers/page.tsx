@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/page-header';
 import { useApp } from '@/components/providers/app-provider';
 import { calculateBalance, calculateBudgetProgress } from '@/lib/finance';
 import { formatCurrency } from '@/lib/format';
+import { CURRENCIES, type CurrencyCode } from '@/lib/types';
 import { validateMoneyBook } from '@/lib/validation';
 
 export default function MoneyBookPage() {
@@ -13,6 +14,7 @@ export default function MoneyBookPage() {
     const [open, setOpen] = useState(false);
     const [name, setName] = useState('');
     const [budget, setBudget] = useState('');
+    const [currencyCode, setCurrencyCode] = useState<CurrencyCode>('TWD');
     const [errors, setErrors] = useState<ReturnType<typeof validateMoneyBook>>({});
 
     const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -24,9 +26,11 @@ export default function MoneyBookPage() {
         await addMoneyBook({
             name: name.trim(),
             how_much,
+            currency_code: currencyCode,
         });
         setName('');
         setBudget('');
+        setCurrencyCode('TWD');
         setOpen(false);
     };
 
@@ -62,7 +66,7 @@ export default function MoneyBookPage() {
                     className='mb-7 rounded-[28px] border border-line bg-surface p-5 sm:p-6'
                 >
                     <h2 className='font-bold'>建立新帳本</h2>
-                    <div className='mt-5 grid gap-4 sm:grid-cols-2'>
+                    <div className='mt-5 grid gap-4 sm:grid-cols-3'>
                         <label>
                             <span className='mb-2 block text-xs font-bold text-muted'>
                                 帳本名稱
@@ -94,6 +98,22 @@ export default function MoneyBookPage() {
                                     {errors.how_much}
                                 </span>
                             ) : null}
+                        </label>
+                        <label>
+                            <span className='mb-2 block text-xs font-bold text-muted'>幣值</span>
+                            <select
+                                value={currencyCode}
+                                onChange={(event) =>
+                                    setCurrencyCode(event.target.value as CurrencyCode)
+                                }
+                                className='min-h-13 w-full rounded-2xl border border-line bg-white px-4 text-sm font-semibold outline-none focus:border-primary'
+                            >
+                                {CURRENCIES.map((currency) => (
+                                    <option key={currency.code} value={currency.code}>
+                                        {currency.label} ({currency.code})
+                                    </option>
+                                ))}
+                            </select>
                         </label>
                     </div>
                     <button
@@ -149,14 +169,22 @@ export default function MoneyBookPage() {
                                             ) : null}
                                         </span>
                                         <span className='mt-1 block text-xs text-muted'>
-                                            預算 {formatCurrency(money_book.how_much)} ·{' '}
+                                            預算{' '}
+                                            {formatCurrency(
+                                                money_book.how_much,
+                                                money_book.currency_code,
+                                            )}{' '}
+                                            ·{' '}
                                             {transactions.length} 筆交易
                                         </span>
                                         <span className='mt-4 block text-xs font-semibold text-muted'>
                                             目前餘額
                                         </span>
                                         <span className='mt-1 block text-xl font-bold tabular-nums'>
-                                            {formatCurrency(balance)}
+                                            {formatCurrency(
+                                                balance,
+                                                money_book.currency_code,
+                                            )}
                                         </span>
                                         <span className='mt-4 block h-1.5 overflow-hidden rounded-full bg-white'>
                                             <span

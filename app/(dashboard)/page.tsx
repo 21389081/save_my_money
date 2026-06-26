@@ -58,6 +58,7 @@ export default function DashboardPage() {
   const progress = calculateBudgetProgress(money_book, transactions);
   const monthly = getMonthlySummary(transactions, toMonthKey());
   const visualPercentage = Math.min(progress.percentage, 100);
+  const currencyCode = money_book.currency_code;
 
   return (
     <>
@@ -78,7 +79,7 @@ export default function DashboardPage() {
               目前餘額
             </p>
             <p className="mt-2 text-[clamp(2.15rem,8vw,3.8rem)] font-bold leading-none tracking-[-0.055em] tabular-nums">
-              {formatCurrency(balance)}
+              {formatCurrency(balance, currencyCode)}
             </p>
           </div>
           <div
@@ -89,8 +90,8 @@ export default function DashboardPage() {
             }`}
           >
             {progress.isOverBudget
-              ? `已超支 ${formatCurrency(progress.spent - money_book.how_much)}`
-              : `還可使用 ${formatCurrency(Math.max(money_book.how_much - progress.spent, 0))}`}
+              ? `已超支 ${formatCurrency(progress.spent - money_book.how_much, currencyCode)}`
+              : `還可使用 ${formatCurrency(Math.max(money_book.how_much - progress.spent, 0), currencyCode)}`}
           </div>
         </div>
         <div className="mt-8">
@@ -107,8 +108,8 @@ export default function DashboardPage() {
             />
           </div>
           <p className="mt-2 text-xs text-muted">
-            已使用 {formatCurrency(progress.spent)}，預算{" "}
-            {formatCurrency(money_book.how_much)}
+            已使用 {formatCurrency(progress.spent, currencyCode)}，預算{" "}
+            {formatCurrency(money_book.how_much, currencyCode)}
           </p>
         </div>
       </section>
@@ -120,7 +121,7 @@ export default function DashboardPage() {
           </span>
           <p className="mt-4 text-xs font-semibold text-muted">本月收入</p>
           <p className="mt-1 text-lg font-bold text-income tabular-nums">
-            {formatCurrency(monthly.income)}
+            {formatCurrency(monthly.income, currencyCode)}
           </p>
         </div>
         <div className="rounded-3xl border border-line p-4 sm:p-5">
@@ -129,7 +130,7 @@ export default function DashboardPage() {
           </span>
           <p className="mt-4 text-xs font-semibold text-muted">本月支出</p>
           <p className="mt-1 text-lg font-bold tabular-nums">
-            {formatCurrency(monthly.expense)}
+            {formatCurrency(monthly.expense, currencyCode)}
           </p>
         </div>
       </section>
@@ -144,7 +145,10 @@ export default function DashboardPage() {
             查看統計 <ChevronRight size={17} />
           </Link>
         </div>
-        <TransactionList transactions={transactions.slice(0, 8)} />
+        <TransactionList
+          transactions={transactions.slice(0, 8)}
+          currencyCode={currencyCode}
+        />
       </section>
     </>
   );

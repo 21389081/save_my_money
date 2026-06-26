@@ -154,6 +154,7 @@ describe("supabaseRepository", () => {
       supabaseRepository.createMoneyBook(client, {
         name: "生活",
         how_much: 10_000,
+        currency_code: "USD",
       }),
     ).resolves.toEqual(moneyBookRow);
 
@@ -161,7 +162,7 @@ describe("supabaseRepository", () => {
       name: "生活",
       how_much: 10_000,
       user_id: user.id,
-      currency_code: "TWD",
+      currency_code: "USD",
     });
   });
 

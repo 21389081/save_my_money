@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BookOpen, Check, ChevronLeft, Trash2 } from "lucide-react";
 import { useApp } from "@/components/providers/app-provider";
 import { toLocalDateInput } from "@/lib/date";
+import { formatCurrencySymbol } from "@/lib/format";
 import {
   CATEGORIES,
   type Category,
@@ -35,6 +36,14 @@ export function TransactionForm({ existing }: { existing?: Transaction }) {
     {},
   );
   const [saved, setSaved] = useState(false);
+  const selectedMoneyBookId =
+    existing?.money_book_id ??
+    state.current_money_book_id ??
+    state.money_book[0]?.id;
+  const selectedMoneyBook = state.money_book.find(
+    (item) => item.id === selectedMoneyBookId,
+  );
+  const currencyCode = selectedMoneyBook?.currency_code;
 
   if (!existing && state.money_book.length === 0) {
     return (
@@ -74,10 +83,7 @@ export function TransactionForm({ existing }: { existing?: Transaction }) {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    const money_book_id =
-      existing?.money_book_id ??
-      state.current_money_book_id ??
-      state.money_book[0]?.id;
+    const money_book_id = selectedMoneyBookId;
 
     if (typeof money_book_id !== "number") return;
 
@@ -183,7 +189,9 @@ export function TransactionForm({ existing }: { existing?: Transaction }) {
         <label className="block">
           <span className="mb-2 block text-sm font-bold">金額</span>
           <span className="flex min-h-16 items-center rounded-2xl border border-line px-4 focus-within:border-primary">
-            <span className="mr-2 text-xl font-bold text-muted">NT$</span>
+            <span className="mr-2 text-xl font-bold text-muted">
+              {formatCurrencySymbol(currencyCode)}
+            </span>
             <input
               value={howMuch}
               onChange={(event) => setHowMuch(event.target.value)}

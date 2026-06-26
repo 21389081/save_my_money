@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { formatShortDate } from "@/lib/date";
 import { formatCurrency } from "@/lib/format";
-import type { Category, Transaction } from "@/lib/types";
+import type { Category, CurrencyCode, Transaction } from "@/lib/types";
 
 const categoryIcons: Record<Category, typeof Soup> = {
   飲食: Soup,
@@ -27,8 +27,10 @@ const categoryIcons: Record<Category, typeof Soup> = {
 
 export function TransactionList({
   transactions,
+  currencyCode,
 }: {
   transactions: Transaction[];
+  currencyCode?: CurrencyCode;
 }) {
   if (transactions.length === 0) {
     return (
@@ -82,7 +84,7 @@ export function TransactionList({
               }`}
             >
               {transaction.transaction_type === "income" ? "+" : "−"}
-              {formatCurrency(transaction.how_much)}
+              {formatCurrency(transaction.how_much, currencyCode)}
             </span>
           </Link>
         );

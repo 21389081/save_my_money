@@ -18,6 +18,10 @@ export default function StatsPage() {
   const { state } = useApp();
   const currentMonth = toMonthKey();
   const [month, setMonth] = useState(currentMonth);
+  const money_book = state.money_book.find(
+    (item) => item.id === state.current_money_book_id,
+  );
+  const currencyCode = money_book?.currency_code;
   const transactions = state.transactions.filter(
     (item) => item.money_book_id === state.current_money_book_id,
   );
@@ -56,7 +60,7 @@ export default function StatsPage() {
       {breakdown.length > 0 ? (
         <>
           <section className="mt-7 rounded-[28px] border border-line p-4 sm:p-6">
-            <ExpenseChart data={breakdown} />
+            <ExpenseChart data={breakdown} currencyCode={currencyCode} />
           </section>
           <section className="mt-8">
             <h2 className="text-lg font-bold">分類明細</h2>
@@ -98,7 +102,7 @@ export default function StatsPage() {
                       </div>
                     </div>
                     <span className="text-sm font-bold tabular-nums">
-                      {formatCurrency(item.amount)}
+                      {formatCurrency(item.amount, currencyCode)}
                     </span>
                   </div>
                 );

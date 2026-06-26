@@ -8,6 +8,7 @@ import {
   Tooltip,
 } from "recharts";
 import { formatCurrency } from "@/lib/format";
+import type { CurrencyCode } from "@/lib/types";
 
 const colors = [
   "#5ea8df",
@@ -22,8 +23,10 @@ const colors = [
 
 export function ExpenseChart({
   data,
+  currencyCode,
 }: {
   data: { category: string; amount: number }[];
+  currencyCode?: CurrencyCode;
 }) {
   const total = data.reduce((sum, item) => sum + item.amount, 0);
 
@@ -53,7 +56,7 @@ export function ExpenseChart({
             ))}
           </Pie>
           <Tooltip
-            formatter={(value) => formatCurrency(Number(value))}
+            formatter={(value) => formatCurrency(Number(value), currencyCode)}
             contentStyle={{
               borderRadius: 16,
               border: "1px solid #dfeaf2",
@@ -67,7 +70,7 @@ export function ExpenseChart({
         <div>
           <p className="text-xs font-semibold text-muted">總支出</p>
           <p className="mt-1 text-xl font-bold tabular-nums">
-            {formatCurrency(total)}
+            {formatCurrency(total, currencyCode)}
           </p>
         </div>
       </div>
