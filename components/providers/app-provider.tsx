@@ -13,9 +13,13 @@ import {
   getSessionFromSupabase,
 } from "@/lib/auth/session";
 import { appReducer, type AppAction } from "@/lib/app-state";
-import { localStorageRepository } from "@/lib/repository";
 import { createClient } from "@/lib/supabase/client";
+import { supabaseRepository } from "@/lib/supabase/repository";
 import type { AppState, MoneyBook, Session, Transaction } from "@/lib/types";
+
+type MoneyBookInput = Pick<MoneyBook, "name" | "how_much"> &
+  Partial<Pick<MoneyBook, "currency_code">>;
+type TransactionInput = Omit<Transaction, "id" | "created_at" | "update_at">;
 
 interface AppContextValue {
   state: AppState;
@@ -23,21 +27,15 @@ interface AppContextValue {
   authChecked: boolean;
   setSession(session: Session | null): void;
   selectMoneyBook(money_book_id: number): void;
-  addMoneyBook(money_book: MoneyBook): void;
-  deleteMoneyBook(money_book_id: number): void;
-  addTransaction(transaction: Transaction): void;
-  updateTransaction(transaction: Transaction): void;
-  deleteTransaction(transaction_id: number): void;
-  resetData(): void;
+  addMoneyBook(money_book: MoneyBookInput): Promise<void>;
+  deleteMoneyBook(money_book_id: number): Promise<void>;
+  addTransaction(transaction: TransactionInput): Promise<void>;
+  updateTransaction(transaction: Transaction): Promise<void>;
+  deleteTransaction(transaction_id: number): Promise<void>;
+  resetData(): Promise<void>;
 }
 
-const initialState: AppState = {
-  version: 1,
-  money_book: [],
-  transactions: [],
-  current_money_book_id: null,
-  session: null,
-};
+const initialState: AppState = supabaseRepository.emptyState(null);
 
 interface ProviderState {
   app: AppState;
@@ -58,6 +56,7 @@ function providerReducer(state: ProviderState, action: AppAction): ProviderState
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const supabase = useMemo(() => createClient(), []);
   const [providerState, dispatch] = useReducer(providerReducer, {
     app: initialState,
     hydrated: false,
@@ -67,24 +66,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const hydrated = providerState.hydrated;
 
   useEffect(() => {
-    dispatch({ type: "hydrate", state: localStorageRepository.load() });
-  }, []);
-
-  useEffect(() => {
-    if (hydrated) localStorageRepository.save(state);
-  }, [hydrated, state]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-
     let active = true;
-    const supabase = createClient();
+
+    async function hydrateWithSession(session: Session | null) {
+      if (!session) {
+        dispatch({ type: "hydrate", state: supabaseRepository.emptyState(null) });
+        return;
+      }
+
+      const nextState = await supabaseRepository.load(supabase, session);
+      if (!active) return;
+      dispatch({ type: "hydrate", state: nextState });
+    }
 
     async function syncSession() {
       const session = await getSessionFromSupabase(supabase);
       if (!active) return;
 
-      dispatch({ type: "session/set", session });
+      await hydrateWithSession(session);
+      if (!active) return;
       setAuthChecked(true);
     }
 
@@ -93,22 +93,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!active) return;
-
-      dispatch({
-        type: "session/set",
-        session: session?.user
+      void (async () => {
+        if (!active) return;
+        const nextSession = session?.user
           ? createSessionFromSupabaseUser(session.user)
-          : null,
-      });
-      setAuthChecked(true);
+          : null;
+        await hydrateWithSession(nextSession);
+        if (!active) return;
+        setAuthChecked(true);
+      })();
     });
 
     return () => {
       active = false;
       subscription.unsubscribe();
     };
-  }, [hydrated]);
+  }, [supabase]);
 
   const value = useMemo<AppContextValue>(
     () => ({
@@ -118,23 +118,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSession: (session) => dispatch({ type: "session/set", session }),
       selectMoneyBook: (money_book_id) =>
         dispatch({ type: "money_book/select", money_book_id }),
-      addMoneyBook: (money_book) =>
-        dispatch({ type: "money_book/add", money_book }),
-      deleteMoneyBook: (money_book_id) =>
-        dispatch({ type: "money_book/delete", money_book_id }),
-      addTransaction: (transaction) =>
-        dispatch({ type: "transaction/add", transaction }),
-      updateTransaction: (transaction) =>
-        dispatch({ type: "transaction/update", transaction }),
-      deleteTransaction: (transaction_id) =>
-        dispatch({ type: "transaction/delete", transaction_id }),
-      resetData: () =>
+      addMoneyBook: async (input) => {
+        const money_book = await supabaseRepository.createMoneyBook(
+          supabase,
+          input,
+        );
+        dispatch({ type: "money_book/add", money_book });
+      },
+      deleteMoneyBook: async (money_book_id) => {
+        await supabaseRepository.deleteMoneyBook(supabase, money_book_id);
+        dispatch({ type: "money_book/delete", money_book_id });
+      },
+      addTransaction: async (input) => {
+        const transaction = await supabaseRepository.createTransaction(
+          supabase,
+          input,
+        );
+        dispatch({ type: "transaction/add", transaction });
+      },
+      updateTransaction: async (transaction) => {
+        const updatedTransaction = await supabaseRepository.updateTransaction(
+          supabase,
+          transaction,
+        );
         dispatch({
-          type: "hydrate",
-          state: localStorageRepository.reset(state.session),
-        }),
+          type: "transaction/update",
+          transaction: updatedTransaction,
+        });
+      },
+      deleteTransaction: async (transaction_id) => {
+        await supabaseRepository.deleteTransaction(supabase, transaction_id);
+        dispatch({ type: "transaction/delete", transaction_id });
+      },
+      resetData: async () => {
+        const nextState = await supabaseRepository.reset(
+          supabase,
+          state.session,
+        );
+        dispatch({ type: "hydrate", state: nextState });
+      },
     }),
-    [authChecked, hydrated, state],
+    [authChecked, hydrated, state, supabase],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

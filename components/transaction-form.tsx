@@ -60,7 +60,7 @@ export function TransactionForm({ existing }: { existing?: Transaction }) {
     );
   }
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const numericHowMuch = Number(howMuch);
     const nextErrors = validateTransaction(
@@ -81,8 +81,7 @@ export function TransactionForm({ existing }: { existing?: Transaction }) {
 
     if (typeof money_book_id !== "number") return;
 
-    const transaction: Transaction = {
-      id: existing?.id ?? Date.now(),
+    const transaction = {
       money_book_id,
       name: name.trim(),
       how_much: numericHowMuch,
@@ -90,11 +89,18 @@ export function TransactionForm({ existing }: { existing?: Transaction }) {
       category:
         transactionType === "expense" && category ? category : null,
       transaction_date: transactionDate,
-      created_at: existing?.created_at ?? new Date().toISOString(),
     };
 
-    if (existing) updateTransaction(transaction);
-    else addTransaction(transaction);
+    if (existing) {
+      await updateTransaction({
+        ...transaction,
+        id: existing.id,
+        created_at: existing.created_at,
+        update_at: existing.update_at,
+      });
+    } else {
+      await addTransaction(transaction);
+    }
     setSaved(true);
     window.setTimeout(() => router.push("/"), 450);
   };
@@ -102,7 +108,7 @@ export function TransactionForm({ existing }: { existing?: Transaction }) {
   const remove = () => {
     if (!existing) return;
     if (window.confirm(`確定要刪除「${existing.name}」嗎？`)) {
-      deleteTransaction(existing.id);
+      void deleteTransaction(existing.id);
       router.push("/");
     }
   };

@@ -45,9 +45,3 @@ export interface AppState {
   current_money_book_id: number | null;
   session: Session | null;
 }
-
-export interface MoneyBookRepository {
-  load(): AppState;
-  save(state: AppState): void;
-  reset(session?: Session | null): AppState;
-}
