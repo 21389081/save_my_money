@@ -23,13 +23,13 @@ const navigation = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { hydrated, state } = useApp();
+  const { authChecked, hydrated, state } = useApp();
 
   useEffect(() => {
-    if (hydrated && !state.session) router.replace("/login");
-  }, [hydrated, router, state.session]);
+    if (hydrated && authChecked && !state.session) router.replace("/login");
+  }, [authChecked, hydrated, router, state.session]);
 
-  if (!hydrated || !state.session) {
+  if (!hydrated || !authChecked || !state.session) {
     return (
       <div className="grid min-h-screen place-items-center bg-white">
         <div className="flex items-center gap-3 text-sm font-medium text-muted">

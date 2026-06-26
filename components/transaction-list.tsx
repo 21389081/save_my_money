@@ -12,9 +12,9 @@ import {
 } from "lucide-react";
 import { formatShortDate } from "@/lib/date";
 import { formatCurrency } from "@/lib/format";
-import type { Transaction } from "@/lib/types";
+import type { Category, Transaction } from "@/lib/types";
 
-const categoryIcons = {
+const categoryIcons: Record<Category, typeof Soup> = {
   飲食: Soup,
   交通: Bus,
   購物: ShoppingBag,
@@ -37,7 +37,9 @@ export function TransactionList({
           <Wallet size={22} />
         </span>
         <p className="mt-4 font-bold">還沒有任何交易</p>
-        <p className="mt-1 text-sm text-muted">按下新增按鈕，記下第一筆收支。</p>
+        <p className="mt-1 text-sm text-muted">
+          新增第一筆收支後，這裡會開始顯示紀錄。
+        </p>
       </div>
     );
   }
@@ -45,10 +47,9 @@ export function TransactionList({
   return (
     <div className="divide-y divide-line">
       {transactions.map((transaction) => {
-        const Icon =
-          transaction.category && categoryIcons[transaction.category]
-            ? categoryIcons[transaction.category]
-            : Wallet;
+        const Icon = transaction.category
+          ? categoryIcons[transaction.category]
+          : Wallet;
         return (
           <Link
             key={transaction.id}
@@ -57,7 +58,7 @@ export function TransactionList({
           >
             <span
               className={`grid size-11 shrink-0 place-items-center rounded-2xl ${
-                transaction.type === "income"
+                transaction.transaction_type === "income"
                   ? "bg-income-soft text-income"
                   : "bg-primary-soft text-primary-strong"
               }`}
@@ -66,20 +67,22 @@ export function TransactionList({
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-bold">
-                {transaction.title}
+                {transaction.name}
               </span>
               <span className="mt-1 block text-xs text-muted">
-                {formatShortDate(transaction.date)} ·{" "}
+                {formatShortDate(transaction.transaction_date)} ·{" "}
                 {transaction.category ?? "未分類"}
               </span>
             </span>
             <span
               className={`shrink-0 text-sm font-bold tabular-nums ${
-                transaction.type === "income" ? "text-income" : "text-foreground"
+                transaction.transaction_type === "income"
+                  ? "text-income"
+                  : "text-foreground"
               }`}
             >
-              {transaction.type === "income" ? "+" : "−"}
-              {formatCurrency(transaction.amount)}
+              {transaction.transaction_type === "income" ? "+" : "−"}
+              {formatCurrency(transaction.how_much)}
             </span>
           </Link>
         );

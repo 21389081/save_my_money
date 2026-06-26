@@ -1,8 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, Trash2 } from "lucide-react";
+import { BookOpen, Check, ChevronLeft, Trash2 } from "lucide-react";
 import { useApp } from "@/components/providers/app-provider";
 import { toLocalDateInput } from "@/lib/date";
 import {
@@ -13,49 +14,83 @@ import {
 } from "@/lib/types";
 import { validateTransaction } from "@/lib/validation";
 
-export function TransactionForm({
-  existing,
-}: {
-  existing?: Transaction;
-}) {
+export function TransactionForm({ existing }: { existing?: Transaction }) {
   const router = useRouter();
   const { state, addTransaction, updateTransaction, deleteTransaction } =
     useApp();
-  const [type, setType] = useState<TransactionType>(
-    existing?.type ?? "expense",
+  const [transactionType, setTransactionType] = useState<TransactionType>(
+    existing?.transaction_type ?? "expense",
   );
-  const [title, setTitle] = useState(existing?.title ?? "");
-  const [amount, setAmount] = useState(
-    existing ? String(existing.amount) : "",
+  const [name, setName] = useState(existing?.name ?? "");
+  const [howMuch, setHowMuch] = useState(
+    existing ? String(existing.how_much) : "",
   );
   const [category, setCategory] = useState<Category | "">(
     existing?.category ?? "",
   );
-  const [date, setDate] = useState(existing?.date ?? toLocalDateInput());
+  const [transactionDate, setTransactionDate] = useState(
+    existing?.transaction_date ?? toLocalDateInput(),
+  );
   const [errors, setErrors] = useState<ReturnType<typeof validateTransaction>>(
     {},
   );
   const [saved, setSaved] = useState(false);
 
+  if (!existing && state.money_book.length === 0) {
+    return (
+      <section className="mx-auto grid min-h-[60vh] max-w-xl place-items-center text-center">
+        <div className="max-w-sm">
+          <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary-soft text-primary-strong">
+            <BookOpen size={25} />
+          </span>
+          <h1 className="mt-5 text-2xl font-bold tracking-[-0.035em]">
+            先建立一本帳本
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted">
+            新增交易前需要先有一本帳本，這樣每筆收支才有地方歸檔。
+          </p>
+          <Link
+            href="/ledgers"
+            className="mt-6 inline-flex min-h-12 items-center justify-center rounded-2xl bg-primary-strong px-5 text-sm font-bold text-white shadow-[0_10px_25px_rgba(36,120,184,.2)]"
+          >
+            建立第一本帳本
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const numericAmount = Number(amount);
+    const numericHowMuch = Number(howMuch);
     const nextErrors = validateTransaction(
-      { title, amount: numericAmount, date },
+      {
+        name,
+        how_much: numericHowMuch,
+        transaction_date: transactionDate,
+      },
       toLocalDateInput(),
     );
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
+    const money_book_id =
+      existing?.money_book_id ??
+      state.current_money_book_id ??
+      state.money_book[0]?.id;
+
+    if (typeof money_book_id !== "number") return;
+
     const transaction: Transaction = {
-      id: existing?.id ?? crypto.randomUUID(),
-      ledgerId: existing?.ledgerId ?? state.currentLedgerId,
-      title: title.trim(),
-      amount: numericAmount,
-      type,
-      category: type === "expense" && category ? category : null,
-      date,
-      createdAt: existing?.createdAt ?? new Date().toISOString(),
+      id: existing?.id ?? Date.now(),
+      money_book_id,
+      name: name.trim(),
+      how_much: numericHowMuch,
+      transaction_type: transactionType,
+      category:
+        transactionType === "expense" && category ? category : null,
+      transaction_date: transactionDate,
+      created_at: existing?.created_at ?? new Date().toISOString(),
     };
 
     if (existing) updateTransaction(transaction);
@@ -66,7 +101,7 @@ export function TransactionForm({
 
   const remove = () => {
     if (!existing) return;
-    if (window.confirm(`確定要刪除「${existing.title}」嗎？`)) {
+    if (window.confirm(`確定要刪除「${existing.name}」嗎？`)) {
       deleteTransaction(existing.id);
       router.push("/");
     }
@@ -108,9 +143,9 @@ export function TransactionForm({
               <button
                 key={value}
                 type="button"
-                onClick={() => setType(value)}
+                onClick={() => setTransactionType(value)}
                 className={`min-h-12 rounded-xl text-sm font-bold transition ${
-                  type === value
+                  transactionType === value
                     ? value === "income"
                       ? "bg-white text-income shadow-sm"
                       : "bg-white text-expense shadow-sm"
@@ -126,15 +161,15 @@ export function TransactionForm({
         <label className="block">
           <span className="mb-2 block text-sm font-bold">條目</span>
           <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
             placeholder="例如：午餐、薪水"
             autoFocus
             className="min-h-14 w-full rounded-2xl border border-line bg-white px-4 text-base outline-none transition focus:border-primary"
           />
-          {errors.title ? (
+          {errors.name ? (
             <span className="mt-2 block text-xs font-semibold text-expense">
-              {errors.title}
+              {errors.name}
             </span>
           ) : null}
         </label>
@@ -144,8 +179,8 @@ export function TransactionForm({
           <span className="flex min-h-16 items-center rounded-2xl border border-line px-4 focus-within:border-primary">
             <span className="mr-2 text-xl font-bold text-muted">NT$</span>
             <input
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              value={howMuch}
+              onChange={(event) => setHowMuch(event.target.value)}
               type="number"
               inputMode="decimal"
               min="0"
@@ -154,14 +189,14 @@ export function TransactionForm({
               className="min-w-0 flex-1 bg-transparent text-3xl font-bold tracking-tight outline-none"
             />
           </span>
-          {errors.amount ? (
+          {errors.how_much ? (
             <span className="mt-2 block text-xs font-semibold text-expense">
-              {errors.amount}
+              {errors.how_much}
             </span>
           ) : null}
         </label>
 
-        {type === "expense" ? (
+        {transactionType === "expense" ? (
           <label className="block">
             <span className="mb-2 block text-sm font-bold">
               分類 <span className="font-normal text-muted">（可不選）</span>
@@ -186,15 +221,15 @@ export function TransactionForm({
         <label className="block">
           <span className="mb-2 block text-sm font-bold">交易日期</span>
           <input
-            value={date}
-            onChange={(event) => setDate(event.target.value)}
+            value={transactionDate}
+            onChange={(event) => setTransactionDate(event.target.value)}
             type="date"
             max={toLocalDateInput()}
             className="min-h-14 w-full rounded-2xl border border-line bg-white px-4 text-sm font-semibold outline-none focus:border-primary"
           />
-          {errors.date ? (
+          {errors.transaction_date ? (
             <span className="mt-2 block text-xs font-semibold text-expense">
-              {errors.date}
+              {errors.transaction_date}
             </span>
           ) : null}
         </label>

@@ -3,20 +3,20 @@
 import { ChevronDown } from "lucide-react";
 import { useApp } from "@/components/providers/app-provider";
 
-export function LedgerSelector() {
-  const { state, selectLedger } = useApp();
+export function MoneyBookSelector() {
+  const { state, selectMoneyBook } = useApp();
 
   return (
     <label className="relative inline-flex max-w-full items-center">
       <span className="sr-only">選擇帳本</span>
       <select
-        value={state.currentLedgerId}
-        onChange={(event) => selectLedger(event.target.value)}
+        value={state.current_money_book_id ?? ""}
+        onChange={(event) => selectMoneyBook(Number(event.target.value))}
         className="min-h-11 max-w-full appearance-none rounded-2xl border border-line bg-white py-2 pl-4 pr-10 text-sm font-bold text-foreground shadow-sm"
       >
-        {state.ledgers.map((ledger) => (
-          <option key={ledger.id} value={ledger.id}>
-            {ledger.name}
+        {state.money_book.map((money_book) => (
+          <option key={money_book.id} value={money_book.id}>
+            {money_book.name}
           </option>
         ))}
       </select>

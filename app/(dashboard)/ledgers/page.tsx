@@ -6,43 +6,45 @@ import { PageHeader } from "@/components/page-header";
 import { useApp } from "@/components/providers/app-provider";
 import { calculateBalance, calculateBudgetProgress } from "@/lib/finance";
 import { formatCurrency } from "@/lib/format";
-import { validateLedger } from "@/lib/validation";
+import { validateMoneyBook } from "@/lib/validation";
 
-export default function LedgersPage() {
-  const { state, addLedger, deleteLedger, selectLedger } = useApp();
+export default function MoneyBookPage() {
+  const { state, addMoneyBook, deleteMoneyBook, selectMoneyBook } = useApp();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [budget, setBudget] = useState("");
-  const [errors, setErrors] = useState<ReturnType<typeof validateLedger>>({});
+  const [errors, setErrors] = useState<
+    ReturnType<typeof validateMoneyBook>
+  >({});
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const initialBudget = Number(budget);
-    const nextErrors = validateLedger({ name, initialBudget });
+    const how_much = Number(budget);
+    const nextErrors = validateMoneyBook({ name, how_much });
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    addLedger({
-      id: crypto.randomUUID(),
+    addMoneyBook({
+      id: Date.now(),
       name: name.trim(),
-      initialBudget,
-      createdAt: new Date().toISOString(),
+      how_much,
+      created_at: new Date().toISOString(),
     });
     setName("");
     setBudget("");
     setOpen(false);
   };
 
-  const remove = (ledgerId: string, ledgerName: string) => {
-    if (state.ledgers.length === 1) {
+  const remove = (money_book_id: number, money_book_name: string) => {
+    if (state.money_book.length === 1) {
       window.alert("至少需要保留一本帳本。");
       return;
     }
     if (
       window.confirm(
-        `刪除「${ledgerName}」也會刪除其中所有交易，確定繼續嗎？`,
+        `刪除「${money_book_name}」也會刪除其中所有交易，確定繼續嗎？`,
       )
     ) {
-      deleteLedger(ledgerId);
+      deleteMoneyBook(money_book_id);
     }
   };
 
@@ -50,7 +52,7 @@ export default function LedgersPage() {
     <>
       <PageHeader
         title="我的帳本"
-        description="替旅行、生活或任何目標，留一本專屬帳本。"
+        description="管理不同用途的帳本，並切換目前使用中的帳本。"
         action={
           <button
             type="button"
@@ -76,7 +78,7 @@ export default function LedgersPage() {
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="例如：日本行"
+                placeholder="例如：日常生活"
                 className="min-h-13 w-full rounded-2xl border border-line bg-white px-4 text-sm outline-none focus:border-primary"
               />
               {errors.name ? (
@@ -87,7 +89,7 @@ export default function LedgersPage() {
             </label>
             <label>
               <span className="mb-2 block text-xs font-bold text-muted">
-                初始預算
+                預算
               </span>
               <input
                 value={budget}
@@ -97,9 +99,9 @@ export default function LedgersPage() {
                 placeholder="30000"
                 className="min-h-13 w-full rounded-2xl border border-line bg-white px-4 text-sm outline-none focus:border-primary"
               />
-              {errors.initialBudget ? (
+              {errors.how_much ? (
                 <span className="mt-1.5 block text-xs text-expense">
-                  {errors.initialBudget}
+                  {errors.how_much}
                 </span>
               ) : null}
             </label>
@@ -114,16 +116,16 @@ export default function LedgersPage() {
       ) : null}
 
       <div className="space-y-4">
-        {state.ledgers.map((ledger) => {
+        {state.money_book.map((money_book) => {
           const transactions = state.transactions.filter(
-            (item) => item.ledgerId === ledger.id,
+            (item) => item.money_book_id === money_book.id,
           );
-          const balance = calculateBalance(ledger, transactions);
-          const progress = calculateBudgetProgress(ledger, transactions);
-          const active = state.currentLedgerId === ledger.id;
+          const balance = calculateBalance(money_book, transactions);
+          const progress = calculateBudgetProgress(money_book, transactions);
+          const active = state.current_money_book_id === money_book.id;
           return (
             <article
-              key={ledger.id}
+              key={money_book.id}
               className={`rounded-[26px] border p-5 transition sm:p-6 ${
                 active
                   ? "border-primary bg-primary-soft"
@@ -133,7 +135,7 @@ export default function LedgersPage() {
               <div className="flex items-start gap-4">
                 <button
                   type="button"
-                  onClick={() => selectLedger(ledger.id)}
+                  onClick={() => selectMoneyBook(money_book.id)}
                   className="flex min-w-0 flex-1 items-start gap-4 text-left"
                 >
                   <span
@@ -147,7 +149,9 @@ export default function LedgersPage() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className="truncate font-bold">{ledger.name}</span>
+                      <span className="truncate font-bold">
+                        {money_book.name}
+                      </span>
                       {active ? (
                         <span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-primary-strong">
                           使用中
@@ -155,7 +159,7 @@ export default function LedgersPage() {
                       ) : null}
                     </span>
                     <span className="mt-1 block text-xs text-muted">
-                      預算 {formatCurrency(ledger.initialBudget)} ·{" "}
+                      預算 {formatCurrency(money_book.how_much)} ·{" "}
                       {transactions.length} 筆交易
                     </span>
                     <span className="mt-4 block text-xs font-semibold text-muted">
@@ -178,9 +182,9 @@ export default function LedgersPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => remove(ledger.id, ledger.name)}
+                  onClick={() => remove(money_book.id, money_book.name)}
                   className="grid size-11 shrink-0 place-items-center rounded-2xl text-muted transition hover:bg-expense-soft hover:text-expense"
-                  aria-label={`刪除${ledger.name}`}
+                  aria-label={`刪除${money_book.name}`}
                 >
                   <Trash2 size={18} />
                 </button>

@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, PieChart as PieChartIcon } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  PieChart as PieChartIcon,
+} from "lucide-react";
 import { ExpenseChart, expenseChartColors } from "@/components/expense-chart";
-import { LedgerSelector } from "@/components/ledger-selector";
+import { MoneyBookSelector } from "@/components/money-book-selector";
 import { PageHeader } from "@/components/page-header";
 import { useApp } from "@/components/providers/app-provider";
 import { formatMonth, shiftMonth, toMonthKey } from "@/lib/date";
@@ -15,7 +19,7 @@ export default function StatsPage() {
   const currentMonth = toMonthKey();
   const [month, setMonth] = useState(currentMonth);
   const transactions = state.transactions.filter(
-    (item) => item.ledgerId === state.currentLedgerId,
+    (item) => item.money_book_id === state.current_money_book_id,
   );
   const breakdown = getMonthlyCategoryBreakdown(transactions, month);
   const total = breakdown.reduce((sum, item) => sum + item.amount, 0);
@@ -24,8 +28,8 @@ export default function StatsPage() {
     <>
       <PageHeader
         title="支出統計"
-        description="看看每個月的錢，都花去了哪裡。"
-        action={<LedgerSelector />}
+        description="看看這個月份的支出集中在哪些分類。"
+        action={<MoneyBookSelector />}
       />
 
       <div className="flex items-center justify-between rounded-2xl bg-surface p-2">
@@ -55,7 +59,7 @@ export default function StatsPage() {
             <ExpenseChart data={breakdown} />
           </section>
           <section className="mt-8">
-            <h2 className="text-lg font-bold">分類排行</h2>
+            <h2 className="text-lg font-bold">分類明細</h2>
             <div className="mt-3 divide-y divide-line">
               {breakdown.map((item, index) => {
                 const percentage = (item.amount / total) * 100;
@@ -73,7 +77,9 @@ export default function StatsPage() {
                     />
                     <div className="min-w-0">
                       <div className="flex justify-between gap-3">
-                        <span className="text-sm font-bold">{item.category}</span>
+                        <span className="text-sm font-bold">
+                          {item.category}
+                        </span>
                         <span className="text-xs font-semibold text-muted">
                           {percentage.toFixed(0)}%
                         </span>
@@ -105,9 +111,9 @@ export default function StatsPage() {
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary-soft text-primary-strong">
             <PieChartIcon size={25} />
           </span>
-          <h2 className="mt-4 font-bold">這個月還沒有支出</h2>
+          <h2 className="mt-4 font-bold">這個月份還沒有支出</h2>
           <p className="mt-2 text-sm text-muted">
-            新增支出後，分類比例會顯示在這裡。
+            新增支出交易後，就能看到分類統計。
           </p>
         </section>
       )}

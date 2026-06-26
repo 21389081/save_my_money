@@ -1,75 +1,13 @@
-import { toLocalDateInput } from "./date";
-import type { AppState, LedgerRepository } from "./types";
+import type { AppState, MoneyBookRepository } from "./types";
 
 export const STORAGE_KEY = "save-my-money:v1";
 
-function createDemoState(): AppState {
-  const now = new Date();
-  const today = toLocalDateInput(now);
-  const earlier = new Date(now);
-  earlier.setDate(Math.max(1, now.getDate() - 2));
-  const earlierDate = toLocalDateInput(earlier);
-  const createdAt = now.toISOString();
-
+function createEmptyState(): AppState {
   return {
     version: 1,
-    ledgers: [
-      {
-        id: "ledger-daily",
-        name: "日常生活",
-        initialBudget: 30_000,
-        createdAt,
-      },
-      {
-        id: "ledger-japan",
-        name: "日本行",
-        initialBudget: 50_000,
-        createdAt,
-      },
-    ],
-    transactions: [
-      {
-        id: "demo-1",
-        ledgerId: "ledger-daily",
-        title: "早餐",
-        amount: 85,
-        type: "expense",
-        category: "飲食",
-        date: today,
-        createdAt,
-      },
-      {
-        id: "demo-2",
-        ledgerId: "ledger-daily",
-        title: "捷運",
-        amount: 50,
-        type: "expense",
-        category: "交通",
-        date: today,
-        createdAt,
-      },
-      {
-        id: "demo-3",
-        ledgerId: "ledger-daily",
-        title: "接案收入",
-        amount: 6_800,
-        type: "income",
-        category: null,
-        date: earlierDate,
-        createdAt,
-      },
-      {
-        id: "demo-4",
-        ledgerId: "ledger-daily",
-        title: "電影票",
-        amount: 320,
-        type: "expense",
-        category: "娛樂",
-        date: earlierDate,
-        createdAt,
-      },
-    ],
-    currentLedgerId: "ledger-daily",
+    money_book: [],
+    transactions: [],
+    current_money_book_id: null,
     session: null,
   };
 }
@@ -79,16 +17,16 @@ function isValidState(value: unknown): value is AppState {
   const state = value as Partial<AppState>;
   return (
     state.version === 1 &&
-    Array.isArray(state.ledgers) &&
-    state.ledgers.length > 0 &&
+    Array.isArray(state.money_book) &&
     Array.isArray(state.transactions) &&
-    typeof state.currentLedgerId === "string"
+    (typeof state.current_money_book_id === "number" ||
+      state.current_money_book_id === null)
   );
 }
 
-let memoryState = createDemoState();
+let memoryState = createEmptyState();
 
-export const localStorageRepository: LedgerRepository = {
+export const localStorageRepository: MoneyBookRepository = {
   load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -113,7 +51,7 @@ export const localStorageRepository: LedgerRepository = {
     }
   },
   reset(session = null) {
-    const state = { ...createDemoState(), session };
+    const state = { ...createEmptyState(), session };
     this.save(state);
     return state;
   },

@@ -12,22 +12,26 @@ export const CATEGORIES = [
 export type Category = (typeof CATEGORIES)[number];
 export type TransactionType = "income" | "expense";
 
-export interface Ledger {
-  id: string;
+export interface MoneyBook {
+  id: number;
   name: string;
-  initialBudget: number;
-  createdAt: string;
+  how_much: number;
+  created_at: string;
+  updated_at?: string;
+  user_id?: string;
+  currency_code?: string;
 }
 
 export interface Transaction {
-  id: string;
-  ledgerId: string;
-  title: string;
-  amount: number;
-  type: TransactionType;
+  id: number;
+  money_book_id: number;
+  name: string;
+  how_much: number;
+  transaction_type: TransactionType;
   category: Category | null;
-  date: string;
-  createdAt: string;
+  transaction_date: string;
+  created_at: string;
+  update_at?: string;
 }
 
 export interface Session {
@@ -36,13 +40,13 @@ export interface Session {
 
 export interface AppState {
   version: 1;
-  ledgers: Ledger[];
+  money_book: MoneyBook[];
   transactions: Transaction[];
-  currentLedgerId: string;
+  current_money_book_id: number | null;
   session: Session | null;
 }
 
-export interface LedgerRepository {
+export interface MoneyBookRepository {
   load(): AppState;
   save(state: AppState): void;
   reset(session?: Session | null): AppState;

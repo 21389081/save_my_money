@@ -1,35 +1,35 @@
-import type { Ledger, Transaction } from "./types";
+import type { MoneyBook, Transaction } from "./types";
 
 export function calculateBalance(
-  ledger: Ledger,
+  money_book: MoneyBook,
   transactions: Transaction[],
 ): number {
   return transactions.reduce(
     (balance, transaction) =>
-      transaction.type === "income"
-        ? balance + transaction.amount
-        : balance - transaction.amount,
-    ledger.initialBudget,
+      transaction.transaction_type === "income"
+        ? balance + transaction.how_much
+        : balance - transaction.how_much,
+    money_book.how_much,
   );
 }
 
 export function calculateBudgetProgress(
-  ledger: Ledger,
+  money_book: MoneyBook,
   transactions: Transaction[],
 ) {
   const spent = transactions.reduce(
     (total, transaction) =>
-      transaction.type === "expense" ? total + transaction.amount : total,
+      transaction.transaction_type === "expense"
+        ? total + transaction.how_much
+        : total,
     0,
   );
-  const percentage = Number(
-    ((spent / ledger.initialBudget) * 100).toFixed(2),
-  );
+  const percentage = Number(((spent / money_book.how_much) * 100).toFixed(2));
 
   return {
     spent,
     percentage,
-    isOverBudget: spent > ledger.initialBudget,
+    isOverBudget: spent > money_book.how_much,
   };
 }
 
@@ -39,8 +39,8 @@ export function getMonthlySummary(
 ) {
   return transactions.reduce(
     (summary, transaction) => {
-      if (!transaction.date.startsWith(monthKey)) return summary;
-      summary[transaction.type] += transaction.amount;
+      if (!transaction.transaction_date.startsWith(monthKey)) return summary;
+      summary[transaction.transaction_type] += transaction.how_much;
       return summary;
     },
     { income: 0, expense: 0 },
@@ -55,13 +55,13 @@ export function getMonthlyCategoryBreakdown(
 
   for (const transaction of transactions) {
     if (
-      transaction.type !== "expense" ||
-      !transaction.date.startsWith(monthKey)
+      transaction.transaction_type !== "expense" ||
+      !transaction.transaction_date.startsWith(monthKey)
     ) {
       continue;
     }
     const category = transaction.category ?? "未分類";
-    totals.set(category, (totals.get(category) ?? 0) + transaction.amount);
+    totals.set(category, (totals.get(category) ?? 0) + transaction.how_much);
   }
 
   return Array.from(totals, ([category, amount]) => ({ category, amount })).sort(
