@@ -1,13 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { CircleDollarSign, CloudOff, LogOut, UserRound } from 'lucide-react';
+import { Cloud, LogOut, UserRound } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { useApp } from '@/components/providers/app-provider';
 
 export default function SettingsPage() {
     const router = useRouter();
-    const { state, setSession, resetData } = useApp();
+    const { state, setSession } = useApp();
 
     const logout = () => {
         setSession(null);
@@ -20,8 +20,7 @@ export default function SettingsPage() {
             label: '使用者',
             value: state.session?.name ?? '未登入',
         },
-        { icon: CircleDollarSign, label: '顯示幣別', value: '新台幣（NT$）' },
-        { icon: CloudOff, label: '同步狀態', value: '僅儲存在這台裝置' },
+        { icon: Cloud, label: '同步狀態', value: '雲端已同步' },
     ];
 
     return (
