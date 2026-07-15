@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Project Agent Guide
 
-This repository is **好好記帳**, a Traditional Chinese personal finance app built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, Supabase, Recharts, and Vitest.
+This repository is **好好記帳**, a Traditional Chinese personal finance app built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, Supabase, Recharts, and Vitest. Each money book has its own currency; the app formats amounts in that currency but does not perform currency conversion.
 
 Use this file as the project-specific collaboration guide for AI agents. The Next.js block above is managed separately; keep custom instructions outside the marker comments.
 
@@ -30,7 +30,7 @@ Useful Next.js docs for this project:
 
 ## App Summary
 
-The app lets users sign in with Google, manage money books, add income/expense transactions, track budget usage, and view monthly expense breakdowns.
+The app lets users sign in with Google, manage money books, choose a currency per book, add income/expense transactions, track budget usage, and view monthly expense breakdowns. New users start with an empty state and must create their first money book; do not reintroduce demo or seeded finance data unless explicitly requested.
 
 Core routes:
 
@@ -58,9 +58,24 @@ Important files:
 - `lib/supabase/repository.ts`: all database reads/writes for app state.
 - `components/providers/app-provider.tsx`: auth hydration, reducer, and CRUD actions.
 - `lib/app-state.ts`: reducer for local client state after Supabase operations.
+- `lib/auth/auth.ts`: starts Google OAuth.
+- `lib/auth/auth-callback.ts`: exchanges the OAuth code and upserts `user_data`.
+- `lib/auth/session.ts`: maps the verified Supabase user to the small UI session shape.
 - `lib/types.ts`: shared app data model.
 - `lib/finance.ts`: budget, balance, monthly summary, and category calculations.
+- `lib/format.ts`: currency formatting and input symbols.
+- `lib/date.ts`: local date/month keys and display formatting.
 - `lib/validation.ts`: form validation.
+
+## Runtime Data Flow
+
+1. `AppProvider` creates the browser Supabase client and verifies the user with `auth.getUser()`.
+2. When authenticated, `supabaseRepository.load()` fetches the user's money books first, then transactions belonging to those book IDs.
+3. CRUD actions persist to Supabase before dispatching reducer actions. The reducer is the client-side view of confirmed database state, not the primary datastore.
+4. `AppShell` waits for hydration and auth checks, then redirects unauthenticated dashboard users to `/login` on the client.
+5. The root `proxy.ts` refreshes Supabase auth cookies through `getClaims()`; it is not the application's complete authorization layer.
+
+The selected money book is local reducer state. On a fresh load, the first book ordered by `created_at` becomes selected; the selection is not persisted separately.
 
 ## Next.js 16 Notes
 
@@ -85,10 +100,12 @@ Rules:
 - Never commit `.env*` files or real secrets.
 - Never expose `service_role` or secret keys in `NEXT_PUBLIC_` variables.
 - Use `supabase.auth.getUser()` or `getClaims()` for auth verification; do not trust client-only session state for authorization.
+- Treat the app's `Session` type as display state only: it currently contains a name, not user identity or authorization claims.
 - Keep RLS enabled for tables exposed through the Supabase Data API.
 - Policies must restrict rows by ownership. `TO authenticated` alone is not enough.
 - If changing schema, update `lib/types.ts`, `lib/supabase/repository.ts`, README schema notes, and tests together.
 - If changing auth or database behavior, verify against current Supabase docs/changelog when network/docs access is available.
+- Keep ownership checks in the database even when repository queries already filter by the current user.
 
 Tables currently referenced by code:
 
@@ -106,6 +123,8 @@ Tables currently referenced by code:
 - Use `lucide-react` for icons.
 - Use `formatCurrency`, date helpers, and finance helpers instead of duplicating formatting or calculations.
 - Keep mobile behavior in mind: the app has a desktop sidebar and mobile bottom navigation.
+- Preserve the established `money_book` naming when touching existing state and repository code; do not perform a broad camelCase rename as part of unrelated work.
+- There is no configured formatter script. Match the surrounding file style and avoid whole-file formatting churn.
 
 ## Data And Domain Rules
 
@@ -115,7 +134,12 @@ Tables currently referenced by code:
 - Transaction types are `"income"` and `"expense"`.
 - Expense categories are defined in `CATEGORIES` in `lib/types.ts`.
 - Income transactions should use `category: null`.
-- Do not delete the last money book through UI behavior; current reducer and page logic preserve at least one.
+- Currency is a money-book property. Supported codes are defined by `CURRENCIES`: `TWD`, `JPY`, `USD`, `EUR`, `CNY`, and `HKD`.
+- New books default to `TWD` in the repository when no currency is supplied. Existing code allows a missing `currency_code` for compatibility and formatting also falls back to `TWD`.
+- Never combine totals across money books with different currencies unless a conversion requirement and exchange-rate source are explicitly added.
+- Do not delete the last money book through UI behavior. Both the page and reducer guard this invariant; repository methods are lower-level and do not enforce it themselves.
+- Deleting a book deletes its transactions before deleting the book. Keep this order unless the confirmed database schema provides the intended cascading behavior.
+- Repository/provider CRUD methods can reject. When changing interactive flows, preserve errors and add deliberate pending/error UI rather than silently swallowing failures.
 
 ## Testing
 
@@ -137,19 +161,24 @@ Testing setup:
 Add or update tests when changing:
 
 - finance calculations
+- currency formatting or supported currencies
 - validation
 - auth callback/session mapping
 - Supabase repository behavior
 - provider hydration or CRUD actions
 - pages/components with visible state transitions
+- empty-user and last-money-book behavior
 
 ## Known Traps
 
 - PowerShell may display Chinese as mojibake. The files are UTF-8; use a UTF-8-safe read method before changing copy.
-- `settings/page.tsx` currently contains copy that says Supabase/Google OAuth will be added later, but the code already uses Supabase and Google OAuth. Treat code as source of truth and update stale UI copy if touching that page.
+- `settings/page.tsx` still describes a demo account/local data even though the app uses Supabase cloud data. Treat the implementation as source of truth and update that stale copy if touching the page.
+- The current settings logout handler only clears local display state and redirects; it does not call `supabase.auth.signOut()`. Verify and correct the real Supabase sign-out flow if changing logout behavior.
+- `resetData()` still exists in `AppProvider`, but the current settings UI does not expose a reset action. Do not assume README or older tests describe the visible settings controls exactly.
 - `/supabasetest` queries `connection_smoke_tests`; this route is for development diagnostics and may not belong in public production navigation.
-- `transactions.update_at` is spelled without the second `d` in the current TypeScript type and repository payload. Confirm database column names before renaming.
+- `transactions.update_at` is spelled without the second `d` in the current TypeScript type/schema notes. Confirm the live database column before renaming it.
 - The root provider wraps the whole app, including `/login`, so auth hydration behavior can affect both public and protected routes.
+- Dashboard protection currently happens in the client `AppShell`. Do not describe `proxy.ts` as a server-side protected-route redirect without implementing and testing that behavior.
 
 ## Git Hygiene
 
