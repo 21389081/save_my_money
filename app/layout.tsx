@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     default: "好好記帳",
     template: "%s｜好好記帳",
   },
-  description: "簡單掌握預算、收入與每一筆生活支出。",
+  description: "簡單掌握餘額、收入與每一筆生活支出。",
   applicationName: "好好記帳",
 };
 

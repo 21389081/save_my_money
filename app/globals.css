@@ -30,6 +30,7 @@
   --color-income-soft: var(--income-soft);
   --color-expense: var(--expense);
   --color-expense-soft: var(--expense-soft);
+  --color-warning: var(--warning);
   --font-sans: "Geist", "Geist Fallback", "Noto Sans TC", "PingFang TC",
     "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;

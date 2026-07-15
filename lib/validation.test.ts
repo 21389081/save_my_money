@@ -2,10 +2,18 @@ import { describe, expect, it } from "vitest";
 import { validateMoneyBook, validateTransaction } from "./validation";
 
 describe("validation", () => {
-  it("rejects a blank money book name and non-positive budget", () => {
+  it("allows a zero initial value while rejecting a blank money book name", () => {
     expect(validateMoneyBook({ name: " ", how_much: 0 })).toEqual({
       name: "請輸入帳本名稱",
-      how_much: "預算必須大於 0",
+    });
+  });
+
+  it("rejects negative and non-finite initial values", () => {
+    expect(validateMoneyBook({ name: "日常", how_much: -1 })).toEqual({
+      how_much: "初始值不可小於 0",
+    });
+    expect(validateMoneyBook({ name: "日常", how_much: Number.NaN })).toEqual({
+      how_much: "初始值不可小於 0",
     });
   });
 

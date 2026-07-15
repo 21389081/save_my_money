@@ -4,7 +4,7 @@ import { FormEvent, useState } from 'react';
 import { BookOpen, Check, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { useApp } from '@/components/providers/app-provider';
-import { calculateBalance, calculateBudgetProgress } from '@/lib/finance';
+import { calculateMoneyBookSummary } from '@/lib/finance';
 import { formatCurrency } from '@/lib/format';
 import { CURRENCIES, type CurrencyCode } from '@/lib/types';
 import { validateMoneyBook } from '@/lib/validation';
@@ -13,13 +13,13 @@ export default function MoneyBookPage() {
     const { state, addMoneyBook, deleteMoneyBook, selectMoneyBook } = useApp();
     const [open, setOpen] = useState(false);
     const [name, setName] = useState('');
-    const [budget, setBudget] = useState('');
+    const [initialValue, setInitialValue] = useState('0');
     const [currencyCode, setCurrencyCode] = useState<CurrencyCode>('TWD');
     const [errors, setErrors] = useState<ReturnType<typeof validateMoneyBook>>({});
 
     const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const how_much = Number(budget);
+        const how_much = Number(initialValue);
         const nextErrors = validateMoneyBook({ name, how_much });
         setErrors(nextErrors);
         if (Object.keys(nextErrors).length > 0) return;
@@ -29,7 +29,7 @@ export default function MoneyBookPage() {
             currency_code: currencyCode,
         });
         setName('');
-        setBudget('');
+        setInitialValue('0');
         setCurrencyCode('TWD');
         setOpen(false);
     };
@@ -84,13 +84,15 @@ export default function MoneyBookPage() {
                             ) : null}
                         </label>
                         <label>
-                            <span className='mb-2 block text-xs font-bold text-muted'>預算</span>
+                            <span className='mb-2 block text-xs font-bold text-muted'>初始值</span>
                             <input
-                                value={budget}
-                                onChange={(event) => setBudget(event.target.value)}
+                                value={initialValue}
+                                onChange={(event) => setInitialValue(event.target.value)}
                                 type='number'
                                 inputMode='numeric'
-                                placeholder='30000'
+                                min='0'
+                                step='1'
+                                placeholder='0'
                                 className='min-h-13 w-full rounded-2xl border border-line bg-white px-4 text-sm outline-none focus:border-primary'
                             />
                             {errors.how_much ? (
@@ -130,8 +132,7 @@ export default function MoneyBookPage() {
                     const transactions = state.transactions.filter(
                         (item) => item.money_book_id === money_book.id,
                     );
-                    const balance = calculateBalance(money_book, transactions);
-                    const progress = calculateBudgetProgress(money_book, transactions);
+                    const summary = calculateMoneyBookSummary(money_book, transactions);
                     const active = state.current_money_book_id === money_book.id;
                     return (
                         <article
@@ -169,7 +170,7 @@ export default function MoneyBookPage() {
                                             ) : null}
                                         </span>
                                         <span className='mt-1 block text-xs text-muted'>
-                                            預算{' '}
+                                            初始值{' '}
                                             {formatCurrency(
                                                 money_book.how_much,
                                                 money_book.currency_code,
@@ -180,24 +181,69 @@ export default function MoneyBookPage() {
                                         <span className='mt-4 block text-xs font-semibold text-muted'>
                                             目前餘額
                                         </span>
-                                        <span className='mt-1 block text-xl font-bold tabular-nums'>
+                                        <span
+                                            className={`mt-1 block text-xl font-bold tabular-nums ${
+                                                summary.status === 'overdrawn'
+                                                    ? 'text-expense'
+                                                    : ''
+                                            }`}
+                                        >
                                             {formatCurrency(
-                                                balance,
+                                                summary.balance,
                                                 money_book.currency_code,
                                             )}
                                         </span>
-                                        <span className='mt-4 block h-1.5 overflow-hidden rounded-full bg-white'>
-                                            <span
-                                                className={`block h-full rounded-full ${
-                                                    progress.isOverBudget
-                                                        ? 'bg-expense'
-                                                        : 'bg-primary'
-                                                }`}
-                                                style={{
-                                                    width: `${Math.min(progress.percentage, 100)}%`,
-                                                }}
-                                            />
-                                        </span>
+                                        {summary.status === 'overdrawn' ? (
+                                            <span className='mt-2 block text-xs font-bold text-expense'>
+                                                已超支{' '}
+                                                {formatCurrency(
+                                                    Math.abs(summary.balance),
+                                                    money_book.currency_code,
+                                                )}
+                                            </span>
+                                        ) : null}
+                                        {summary.percentage !== null ? (
+                                            <span className='mt-4 block'>
+                                                <span className='mb-2 flex justify-between text-xs font-semibold text-muted'>
+                                                    <span>資金使用率</span>
+                                                    <span
+                                                        className={
+                                                            summary.status === 'overdrawn'
+                                                                ? 'text-expense'
+                                                                : summary.status === 'warning'
+                                                                  ? 'text-warning'
+                                                                  : ''
+                                                        }
+                                                    >
+                                                        {summary.percentage.toFixed(0)}%
+                                                    </span>
+                                                </span>
+                                                <span
+                                                    aria-label='資金使用率'
+                                                    aria-valuemax={100}
+                                                    aria-valuemin={0}
+                                                    aria-valuenow={Math.min(
+                                                        summary.percentage,
+                                                        100,
+                                                    )}
+                                                    className='block h-1.5 overflow-hidden rounded-full bg-white'
+                                                    role='progressbar'
+                                                >
+                                                    <span
+                                                        className={`block h-full rounded-full ${
+                                                            summary.status === 'overdrawn'
+                                                                ? 'bg-expense'
+                                                                : summary.status === 'warning'
+                                                                  ? 'bg-warning'
+                                                                  : 'bg-primary'
+                                                        }`}
+                                                        style={{
+                                                            width: `${Math.min(summary.percentage, 100)}%`,
+                                                        }}
+                                                    />
+                                                </span>
+                                            </span>
+                                        ) : null}
                                     </span>
                                 </button>
                                 <button

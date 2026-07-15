@@ -147,20 +147,20 @@ describe("supabaseRepository", () => {
     });
   });
 
-  it("creates a money book through Supabase", async () => {
+  it("creates a money book with a zero initial value through Supabase", async () => {
     const { client, moneyBookTable } = createClient();
 
     await expect(
       supabaseRepository.createMoneyBook(client, {
         name: "生活",
-        how_much: 10_000,
+        how_much: 0,
         currency_code: "USD",
       }),
     ).resolves.toEqual(moneyBookRow);
 
     expect(moneyBookTable.insert).toHaveBeenCalledWith({
       name: "生活",
-      how_much: 10_000,
+      how_much: 0,
       user_id: user.id,
       currency_code: "USD",
     });

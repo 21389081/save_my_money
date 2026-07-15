@@ -11,8 +11,7 @@ import { MoneyBookSelector } from "@/components/money-book-selector";
 import { TransactionList } from "@/components/transaction-list";
 import { useApp } from "@/components/providers/app-provider";
 import {
-  calculateBalance,
-  calculateBudgetProgress,
+  calculateMoneyBookSummary,
   getMonthlySummary,
 } from "@/lib/finance";
 import { formatCurrency } from "@/lib/format";
@@ -54,10 +53,10 @@ export default function DashboardPage() {
       const dateOrder = b.transaction_date.localeCompare(a.transaction_date);
       return dateOrder || b.created_at.localeCompare(a.created_at);
     });
-  const balance = calculateBalance(money_book, transactions);
-  const progress = calculateBudgetProgress(money_book, transactions);
+  const summary = calculateMoneyBookSummary(money_book, transactions);
   const monthly = getMonthlySummary(transactions, toMonthKey());
-  const visualPercentage = Math.min(progress.percentage, 100);
+  const visualPercentage =
+    summary.percentage === null ? 0 : Math.min(summary.percentage, 100);
   const currencyCode = money_book.currency_code;
 
   return (
@@ -78,40 +77,84 @@ export default function DashboardPage() {
             <p className="text-sm font-semibold text-primary-strong">
               目前餘額
             </p>
-            <p className="mt-2 text-[clamp(2.15rem,8vw,3.8rem)] font-bold leading-none tracking-[-0.055em] tabular-nums">
-              {formatCurrency(balance, currencyCode)}
+            <p
+              className={`mt-2 text-[clamp(2.15rem,8vw,3.8rem)] font-bold leading-none tracking-[-0.055em] tabular-nums ${
+                summary.status === "overdrawn" ? "text-expense" : ""
+              }`}
+            >
+              {formatCurrency(summary.balance, currencyCode)}
             </p>
           </div>
-          <div
-            className={`rounded-2xl px-3 py-2 text-xs font-bold ${
-              progress.isOverBudget
-                ? "bg-expense-soft text-expense"
-                : "bg-white text-income"
-            }`}
-          >
-            {progress.isOverBudget
-              ? `已超支 ${formatCurrency(progress.spent - money_book.how_much, currencyCode)}`
-              : `還可使用 ${formatCurrency(Math.max(money_book.how_much - progress.spent, 0), currencyCode)}`}
-          </div>
-        </div>
-        <div className="mt-8">
-          <div className="mb-2 flex justify-between text-xs font-semibold">
-            <span className="text-muted">預算使用比例</span>
-            <span>{progress.percentage.toFixed(0)}%</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-white">
+          {summary.status !== "unavailable" ? (
             <div
-              className={`h-full rounded-full transition-[width] duration-500 ${
-                progress.isOverBudget ? "bg-expense" : "bg-primary"
+              className={`rounded-2xl px-3 py-2 text-xs font-bold ${
+                summary.status === "overdrawn"
+                  ? "bg-expense-soft text-expense"
+                  : summary.status === "warning"
+                    ? "bg-white text-warning"
+                    : "bg-white text-income"
               }`}
-              style={{ width: `${visualPercentage}%` }}
-            />
-          </div>
-          <p className="mt-2 text-xs text-muted">
-            已使用 {formatCurrency(progress.spent, currencyCode)}，預算{" "}
-            {formatCurrency(money_book.how_much, currencyCode)}
-          </p>
+            >
+              {summary.status === "overdrawn" ? (
+                `已超支 ${formatCurrency(Math.abs(summary.balance), currencyCode)}`
+              ) : (
+                <>
+                  已使用{" "}
+                  <span
+                    className={
+                      summary.status === "warning"
+                        ? "text-warning"
+                        : "text-income"
+                    }
+                  >
+                    {summary.percentage?.toFixed(0)}%
+                  </span>
+                </>
+              )}
+            </div>
+          ) : null}
         </div>
+        {summary.percentage !== null ? (
+          <div className="mt-8">
+            <div className="mb-2 flex justify-between text-xs font-semibold">
+              <span className="text-muted">資金使用率</span>
+              <span
+                className={
+                  summary.status === "overdrawn"
+                    ? "text-expense"
+                    : summary.status === "warning"
+                      ? "text-warning"
+                      : ""
+                }
+              >
+                {summary.percentage.toFixed(0)}%
+              </span>
+            </div>
+            <div
+              aria-label="資金使用率"
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={visualPercentage}
+              className="h-2 overflow-hidden rounded-full bg-white"
+              role="progressbar"
+            >
+              <div
+                className={`h-full rounded-full transition-[width] duration-500 ${
+                  summary.status === "overdrawn"
+                    ? "bg-expense"
+                    : summary.status === "warning"
+                      ? "bg-warning"
+                      : "bg-primary"
+                }`}
+                style={{ width: `${visualPercentage}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-muted">
+              已支出 {formatCurrency(summary.spent, currencyCode)}，可用總額{" "}
+              {formatCurrency(summary.available, currencyCode)}
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <section className="mt-5 grid grid-cols-2 gap-3">

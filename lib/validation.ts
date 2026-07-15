@@ -1,8 +1,8 @@
 export function validateMoneyBook(input: { name: string; how_much: number }) {
   const errors: { name?: string; how_much?: string } = {};
   if (!input.name.trim()) errors.name = "請輸入帳本名稱";
-  if (!Number.isFinite(input.how_much) || input.how_much <= 0) {
-    errors.how_much = "預算必須大於 0";
+  if (!Number.isFinite(input.how_much) || input.how_much < 0) {
+    errors.how_much = "初始值不可小於 0";
   }
   return errors;
 }

@@ -1,35 +1,48 @@
 import type { MoneyBook, Transaction } from "./types";
 
-export function calculateBalance(
-  money_book: MoneyBook,
-  transactions: Transaction[],
-): number {
-  return transactions.reduce(
-    (balance, transaction) =>
-      transaction.transaction_type === "income"
-        ? balance + transaction.how_much
-        : balance - transaction.how_much,
-    money_book.how_much,
-  );
-}
+export type MoneyBookStatus =
+  | "unavailable"
+  | "normal"
+  | "warning"
+  | "overdrawn";
 
-export function calculateBudgetProgress(
+export function calculateMoneyBookSummary(
   money_book: MoneyBook,
   transactions: Transaction[],
 ) {
-  const spent = transactions.reduce(
-    (total, transaction) =>
-      transaction.transaction_type === "expense"
-        ? total + transaction.how_much
-        : total,
-    0,
+  const totals = transactions.reduce(
+    (summary, transaction) => {
+      summary[transaction.transaction_type] += transaction.how_much;
+      return summary;
+    },
+    { income: 0, expense: 0 },
   );
-  const percentage = Number(((spent / money_book.how_much) * 100).toFixed(2));
+  const initialValue = money_book.how_much;
+  const income = totals.income;
+  const spent = totals.expense;
+  const available = initialValue + income;
+  const balance = available - spent;
+  const percentage =
+    available === 0
+      ? null
+      : Number(((spent / available) * 100).toFixed(2));
+  const status: MoneyBookStatus =
+    balance < 0
+      ? "overdrawn"
+      : percentage === null
+        ? "unavailable"
+        : percentage > 70
+          ? "warning"
+          : "normal";
 
   return {
+    initialValue,
+    income,
     spent,
+    available,
+    balance,
     percentage,
-    isOverBudget: spent > money_book.how_much,
+    status,
   };
 }
 

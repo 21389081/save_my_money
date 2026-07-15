@@ -36,7 +36,7 @@ export default function LoginPage() {
                         只是變成你喜歡的樣子。
                     </h1>
                     <p className='mt-6 max-w-md text-base leading-7 text-muted sm:text-lg'>
-                        簡單記下收入與支出，掌握每本帳本的預算，讓錢花得更明白。
+                        簡單記下收入與支出，掌握每本帳本的餘額，讓錢花得更明白。
                     </p>
                 </div>
                 <div className='grid max-w-xl gap-3 sm:grid-cols-2'>

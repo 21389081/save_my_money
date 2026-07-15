@@ -1,13 +1,13 @@
 # 好好記帳
 
-好好記帳是一個以繁體中文介面設計的個人記帳 Web App。使用者可以透過 Google OAuth 登入，建立多本帳本、記錄收入與支出、追蹤預算使用比例，並用月統計圖表快速看出錢花在哪些分類。
+好好記帳是一個以繁體中文介面設計的個人記帳 Web App。使用者可以透過 Google OAuth 登入，建立多本帳本、記錄收入與支出、追蹤資金使用率，並用月統計圖表快速看出錢花在哪些分類。
 
 ## 功能特色
 
 - Google OAuth 登入與 Supabase session 同步
 - 多帳本管理：建立、切換、刪除帳本
 - 收支紀錄：新增、編輯、刪除收入與支出
-- 預算追蹤：顯示目前餘額、已用預算比例與超支狀態
+- 餘額追蹤：以帳本初始值和所有收支計算目前餘額、資金使用率與超支狀態
 - 月度統計：按月份檢視分類支出圓餅圖與明細
 - 響應式介面：桌面側邊欄、手機底部導覽與浮動新增按鈕
 - PWA manifest 與 app icon 設定
@@ -46,7 +46,7 @@ components/
 lib/
   auth/                      # OAuth callback、登入、session 轉換
   supabase/                  # browser/server/proxy client 與 repository
-  finance.ts                 # 餘額、預算、月統計計算
+  finance.ts                 # 餘額、資金使用率與月統計計算
   validation.ts              # 表單驗證
 proxy.ts                     # Next.js 16 Proxy，用於刷新 Supabase cookies
 ```
@@ -57,7 +57,7 @@ proxy.ts                     # Next.js 16 Proxy，用於刷新 Supabase cookies
 | --- | --- |
 | `/login` | 登入頁，使用 Google OAuth |
 | `/auth/callback` | OAuth callback route handler |
-| `/` | 儀表板，顯示目前帳本餘額、預算進度、最近交易 |
+| `/` | 儀表板，顯示目前帳本餘額、資金使用率、最近交易 |
 | `/ledgers` | 建立、切換、刪除帳本 |
 | `/transactions/new` | 新增收入或支出 |
 | `/transactions/[id]/edit` | 編輯或刪除交易 |
@@ -93,7 +93,7 @@ create table public.money_book (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
-  how_much numeric not null check (how_much > 0),
+  how_much numeric not null check (how_much >= 0),
   currency_code text not null default 'TWD',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -247,7 +247,7 @@ npm run build
 - 這個專案使用 Next.js 16。Next.js 相關 API、檔案慣例與文件可能和過往版本不同，請以 `node_modules/next/dist/docs/` 內的版本相符文件為準。
 - `proxy.ts` 是 Next.js 16 的 Proxy，不是舊稱 Middleware。Supabase cookie refresh 由 `lib/supabase/proxy.ts` 處理。
 - 全域 app state 由 `components/providers/app-provider.tsx` 管理，資料來源是 Supabase repository，不是 localStorage。
-- 帳本與交易的商業邏輯集中在 `lib/finance.ts` 與 `lib/validation.ts`，修改時請補或更新測試。
+- 帳本初始值、餘額、資金使用率與交易邏輯集中在 `lib/finance.ts` 與 `lib/validation.ts`，修改時請補或更新測試。
 - UI 文字目前以繁體中文為主，語系設定為 `zh-Hant`。
 - `app/(dashboard)` 是 route group，不會出現在 URL 中。
 - `/supabasetest` 是開發檢查用頁面，若要公開部署，請先確認是否需要保留。
@@ -256,7 +256,7 @@ npm run build
 
 目前測試涵蓋：
 
-- 財務計算：餘額、預算比例、月收入支出、分類支出
+- 財務計算：初始值、餘額、資金使用率、月收入支出、分類支出
 - 表單驗證：帳本與交易輸入
 - 空帳本狀態：儀表板與新增交易頁導向帳本建立
 - Auth callback、session、repository 與 provider 行為

@@ -30,7 +30,7 @@ Useful Next.js docs for this project:
 
 ## App Summary
 
-The app lets users sign in with Google, manage money books, choose a currency per book, add income/expense transactions, track budget usage, and view monthly expense breakdowns. New users start with an empty state and must create their first money book; do not reintroduce demo or seeded finance data unless explicitly requested.
+The app lets users sign in with Google, manage money books, choose a currency per book, add income/expense transactions, track balances and fund usage, and view monthly expense breakdowns. New users start with an empty state and must create their first money book; do not reintroduce demo or seeded finance data unless explicitly requested.
 
 Core routes:
 
@@ -62,7 +62,7 @@ Important files:
 - `lib/auth/auth-callback.ts`: exchanges the OAuth code and upserts `user_data`.
 - `lib/auth/session.ts`: maps the verified Supabase user to the small UI session shape.
 - `lib/types.ts`: shared app data model.
-- `lib/finance.ts`: budget, balance, monthly summary, and category calculations.
+- `lib/finance.ts`: initial value, balance, fund usage, monthly summary, and category calculations.
 - `lib/format.ts`: currency formatting and input symbols.
 - `lib/date.ts`: local date/month keys and display formatting.
 - `lib/validation.ts`: form validation.
@@ -128,9 +128,10 @@ Tables currently referenced by code:
 
 ## Data And Domain Rules
 
-- `money_book.how_much` represents the budget/base amount used in balance and progress calculations.
-- Balance is calculated as budget plus income minus expenses.
-- Budget usage counts expenses only.
+- `money_book.how_much` represents the non-negative initial value of a money book. The field name is retained for database compatibility.
+- Available funds are calculated as initial value plus all income. Balance is available funds minus all expenses.
+- Fund usage is all expenses divided by available funds. When available funds are zero, usage is unavailable and the UI hides its percentage and progress bar.
+- A negative balance is overdrawn and uses the expense color. Otherwise, usage above 70% uses the existing warning color; exactly 70% remains normal.
 - Transaction types are `"income"` and `"expense"`.
 - Expense categories are defined in `CATEGORIES` in `lib/types.ts`.
 - Income transactions should use `category: null`.
