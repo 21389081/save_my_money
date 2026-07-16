@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Project Agent Guide
 
-This repository is **好好記帳**, a Traditional Chinese personal finance app built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, Supabase, Recharts, and Vitest. Each money book has its own currency; the app formats amounts in that currency but does not perform currency conversion.
+This repository is **好好記帳**, a Traditional Chinese personal finance app built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, Supabase, Recharts, and Vitest. Each money book has its own currency; the app formats amounts in that currency but does not perform currency conversion. A separate exchange-rate page shows daily reference rates without changing ledger amounts.
 
 Use this file as the project-specific collaboration guide for AI agents. The Next.js block above is managed separately; keep custom instructions outside the marker comments.
 
@@ -30,7 +30,7 @@ Useful Next.js docs for this project:
 
 ## App Summary
 
-The app lets users sign in with Google, manage money books, choose a currency per book, add income/expense transactions, track balances and fund usage, and view monthly expense breakdowns. New users start with an empty state and must create their first money book; do not reintroduce demo or seeded finance data unless explicitly requested.
+The app lets users sign in with Google, manage money books, choose a currency per book, add income/expense transactions, track balances and fund usage, view monthly expense breakdowns, and check the latest daily reference exchange rates. New users start with an empty state and must create their first money book; do not reintroduce demo or seeded finance data unless explicitly requested.
 
 Core routes:
 
@@ -41,6 +41,7 @@ Core routes:
 - `/transactions/new`: create transaction.
 - `/transactions/[id]/edit`: edit or delete transaction.
 - `/stats`: monthly category chart.
+- `/exchange`: latest daily reference rates with TWD as the base currency.
 - `/settings`: user/settings actions.
 - `/supabasetest`: development Supabase smoke test.
 
@@ -65,6 +66,7 @@ Important files:
 - `lib/finance.ts`: initial value, balance, fund usage, monthly summary, and category calculations.
 - `lib/format.ts`: currency formatting and input symbols.
 - `lib/date.ts`: local date/month keys and display formatting.
+- `lib/exchange-rates.ts`: server-only Frankfurter v2 fetch, response validation, ordering, and one-hour revalidation.
 - `lib/validation.ts`: form validation.
 
 ## Runtime Data Flow
@@ -77,6 +79,13 @@ Important files:
 
 The selected money book is local reducer state. On a fresh load, the first book ordered by `created_at` becomes selected; the selection is not persisted separately.
 
+Exchange-rate data follows a separate public-data path:
+
+1. `/exchange` is an async Server Component and does not read ledger state from `AppProvider`.
+2. `getLatestExchangeRates()` requests TWD quotes for JPY, USD, EUR, CNY, and HKD from Frankfurter v2.
+3. The external `fetch` uses `next: { revalidate: 3600 }`, so data is checked at most once per hour on demand; this is not a scheduled hourly job.
+4. The response must contain one shared valid date, the expected TWD base, exactly the five supported quote currencies, and finite positive rates. Invalid or unavailable data produces the page's deliberate error state.
+
 ## Next.js 16 Notes
 
 - Use `proxy.ts`, not `middleware.ts`, unless local Next docs say otherwise.
@@ -85,6 +94,7 @@ The selected money book is local reducer state. On a fresh load, the first book 
 - Server and Client Component boundaries matter. Add `"use client"` only when a file needs hooks, browser APIs, context, event handlers, or client navigation.
 - For dynamic route APIs, verify the current `params` and `searchParams` conventions in the bundled docs before changing signatures.
 - Do not import server-only helpers such as `next/headers` into Client Components.
+- The project does not enable Cache Components. For the exchange-rate request, keep using the existing `fetch` `next.revalidate` model unless the project caching configuration is deliberately migrated.
 
 ## Supabase Rules
 
@@ -122,7 +132,7 @@ Tables currently referenced by code:
 - Prefer existing component patterns before adding abstractions.
 - Use `lucide-react` for icons.
 - Use `formatCurrency`, date helpers, and finance helpers instead of duplicating formatting or calculations.
-- Keep mobile behavior in mind: the app has a desktop sidebar and mobile bottom navigation.
+- Keep mobile behavior in mind: the app has a desktop sidebar and a five-column mobile bottom navigation. Verify any new destination at narrow mobile widths before adding it.
 - Preserve the established `money_book` naming when touching existing state and repository code; do not perform a broad camelCase rename as part of unrelated work.
 - There is no configured formatter script. Match the surrounding file style and avoid whole-file formatting churn.
 
@@ -138,6 +148,9 @@ Tables currently referenced by code:
 - Currency is a money-book property. Supported codes are defined by `CURRENCIES`: `TWD`, `JPY`, `USD`, `EUR`, `CNY`, and `HKD`.
 - New books default to `TWD` in the repository when no currency is supplied. Existing code allows a missing `currency_code` for compatibility and formatting also falls back to `TWD`.
 - Never combine totals across money books with different currencies unless a conversion requirement and exchange-rate source are explicitly added.
+- The exchange page is informational only. It displays `1 TWD = X quote currency` and must not convert, rewrite, or aggregate ledger amounts.
+- Exchange rates come from the keyless Frankfurter v2 public API. They are daily central-bank reference-rate aggregates, not trading quotes or bank cash buy/sell rates; keep the UI wording as "最新匯率", not "即時匯率".
+- The rate date is supplied by Frankfurter and can lag the current date on weekends or holidays. Display that source date instead of inventing a client fetch timestamp.
 - Do not delete the last money book through UI behavior. Both the page and reducer guard this invariant; repository methods are lower-level and do not enforce it themselves.
 - Deleting a book deletes its transactions before deleting the book. Keep this order unless the confirmed database schema provides the intended cascading behavior.
 - Repository/provider CRUD methods can reject. When changing interactive flows, preserve errors and add deliberate pending/error UI rather than silently swallowing failures.
@@ -158,16 +171,19 @@ Testing setup:
 - Test setup: `vitest.setup.ts`
 - DOM environment: jsdom
 - Path alias: `@/*`
+- `server-only` test alias: Next.js compiled empty module, configured in `vitest.config.ts`
 
 Add or update tests when changing:
 
 - finance calculations
 - currency formatting or supported currencies
+- exchange-rate fetching, validation, ordering, formatting, or error states
 - validation
 - auth callback/session mapping
 - Supabase repository behavior
 - provider hydration or CRUD actions
 - pages/components with visible state transitions
+- desktop/mobile navigation destinations or responsive column layout
 - empty-user and last-money-book behavior
 
 ## Known Traps
@@ -180,6 +196,7 @@ Add or update tests when changing:
 - `transactions.update_at` is spelled without the second `d` in the current TypeScript type/schema notes. Confirm the live database column before renaming it.
 - The root provider wraps the whole app, including `/login`, so auth hydration behavior can affect both public and protected routes.
 - Dashboard protection currently happens in the client `AppShell`. Do not describe `proxy.ts` as a server-side protected-route redirect without implementing and testing that behavior.
+- `/exchange` is public-data ISR output wrapped by the same client-side `AppShell` auth gate as the other dashboard pages. Do not move user-specific data into its cached server fetch.
 
 ## Git Hygiene
 

@@ -1,6 +1,6 @@
 # 好好記帳
 
-好好記帳是一個以繁體中文介面設計的個人記帳 Web App。使用者可以透過 Google OAuth 登入，建立多本帳本、記錄收入與支出、追蹤資金使用率，並用月統計圖表快速看出錢花在哪些分類。
+好好記帳是一個以繁體中文介面設計的個人記帳 Web App。使用者可以透過 Google OAuth 登入，建立多本帳本、記錄收入與支出、追蹤資金使用率、查看每日最新參考匯率，並用月統計圖表快速看出錢花在哪些分類。
 
 ## 功能特色
 
@@ -9,7 +9,8 @@
 - 收支紀錄：新增、編輯、刪除收入與支出
 - 餘額追蹤：以帳本初始值和所有收支計算目前餘額、資金使用率與超支狀態
 - 月度統計：按月份檢視分類支出圓餅圖與明細
-- 響應式介面：桌面側邊欄、手機底部導覽與浮動新增按鈕
+- 最新匯率：以新台幣為基準查看 JPY、USD、EUR、CNY、HKD 的每日參考匯率
+- 響應式介面：桌面側邊欄、五欄手機底部導覽與浮動新增按鈕
 - PWA manifest 與 app icon 設定
 - Vitest 單元與元件測試
 
@@ -20,6 +21,7 @@
 - TypeScript strict mode
 - Tailwind CSS `4`
 - Supabase Auth、Database、SSR helpers
+- Frankfurter v2 exchange-rate API
 - Recharts
 - lucide-react
 - Vitest、Testing Library、jsdom
@@ -32,6 +34,7 @@ app/
     page.tsx                 # 首頁儀表板
     ledgers/page.tsx         # 帳本管理
     stats/page.tsx           # 月支出統計
+    exchange/page.tsx        # 每日最新參考匯率
     settings/page.tsx        # 使用者與資料操作
     transactions/
       new/page.tsx           # 新增交易
@@ -46,6 +49,7 @@ components/
 lib/
   auth/                      # OAuth callback、登入、session 轉換
   supabase/                  # browser/server/proxy client 與 repository
+  exchange-rates.ts          # 匯率抓取、驗證、排序與一小時快取
   finance.ts                 # 餘額、資金使用率與月統計計算
   validation.ts              # 表單驗證
 proxy.ts                     # Next.js 16 Proxy，用於刷新 Supabase cookies
@@ -62,8 +66,18 @@ proxy.ts                     # Next.js 16 Proxy，用於刷新 Supabase cookies
 | `/transactions/new` | 新增收入或支出 |
 | `/transactions/[id]/edit` | 編輯或刪除交易 |
 | `/stats` | 月份支出分類統計 |
+| `/exchange` | 以 TWD 為基準的每日最新參考匯率 |
 | `/settings` | 使用者資訊、重設資料、登出 |
 | `/supabasetest` | Supabase 連線 smoke test 頁面 |
+
+## 最新匯率資料
+
+`/exchange` 是 async Server Component，透過 `lib/exchange-rates.ts` 向 Frankfurter v2 取得資料：
+
+- 基準幣別固定為 `TWD`，報價幣別為 `JPY`、`USD`、`EUR`、`CNY`、`HKD`。
+- 使用 Next.js `fetch` 的 `next: { revalidate: 3600 }` 做一小時按需快取，不需要排程器、Supabase 資料表或 API key。
+- 程式會驗證回傳日期、基準幣別、幣別集合與正數匯率；來源失敗或資料不完整時顯示錯誤狀態，不顯示部分結果。
+- 頁面顯示的是每日央行參考匯率彙整，不是即時交易報價或銀行現鈔買賣價，也不會換算或修改帳本金額。
 
 ## 資料模型
 
@@ -179,6 +193,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 - 這兩個變數會被瀏覽器端程式使用，因此必須是 Supabase publishable/anon 等級的公開 key。
 - 不要把 `service_role` 或 secret key 放進任何 `NEXT_PUBLIC_` 變數。
 - `.env*` 已在 `.gitignore` 中，請不要提交本機金鑰。
+- Frankfurter 匯率來源不需要額外環境變數或 API key。
 
 ## Supabase Auth 設定
 
@@ -248,6 +263,7 @@ npm run build
 - `proxy.ts` 是 Next.js 16 的 Proxy，不是舊稱 Middleware。Supabase cookie refresh 由 `lib/supabase/proxy.ts` 處理。
 - 全域 app state 由 `components/providers/app-provider.tsx` 管理，資料來源是 Supabase repository，不是 localStorage。
 - 帳本初始值、餘額、資金使用率與交易邏輯集中在 `lib/finance.ts` 與 `lib/validation.ts`，修改時請補或更新測試。
+- 匯率資料抓取與驗證集中在 `lib/exchange-rates.ts`；它是 server-only 模組，使用一小時 revalidate，請勿移到 Client Component 直接抓取。
 - UI 文字目前以繁體中文為主，語系設定為 `zh-Hant`。
 - `app/(dashboard)` 是 route group，不會出現在 URL 中。
 - `/supabasetest` 是開發檢查用頁面，若要公開部署，請先確認是否需要保留。
@@ -260,6 +276,8 @@ npm run build
 - 表單驗證：帳本與交易輸入
 - 空帳本狀態：儀表板與新增交易頁導向帳本建立
 - Auth callback、session、repository 與 provider 行為
+- 匯率資料抓取、回傳驗證、固定排序、頁面正常／錯誤狀態
+- 桌面與手機導航目的地、exchange active 狀態與手機五欄布局
 
 建議在修改資料流程、登入流程、表單驗證或財務計算後至少執行：
 
