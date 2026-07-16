@@ -175,17 +175,14 @@ export default function MoneyBookPage() {
                                                 money_book.how_much,
                                                 money_book.currency_code,
                                             )}{' '}
-                                            ·{' '}
-                                            {transactions.length} 筆交易
+                                            · {transactions.length} 筆交易
                                         </span>
                                         <span className='mt-4 block text-xs font-semibold text-muted'>
                                             目前餘額
                                         </span>
                                         <span
                                             className={`mt-1 block text-xl font-bold tabular-nums ${
-                                                summary.status === 'overdrawn'
-                                                    ? 'text-expense'
-                                                    : ''
+                                                summary.status === 'overdrawn' ? 'text-expense' : ''
                                             }`}
                                         >
                                             {formatCurrency(
